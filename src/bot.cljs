@@ -25,35 +25,37 @@
 (defn ->object [id]
   (fetch :objects id))
 
+(defn type-of [id]
+  (get-in @state [:objects id :type]))
+
 (def view (comp :view ->object))
 
 (defn- ->behaviors [presenter]
   (map (partial fetch :behavior) (:behaviors presenter)))
 
 (defn trigger [id trigger-name evt]
-  (.log js/console "trigger")
   (let [object (->object id)]
     (doseq [behavior (->behaviors object)]
-      (.log js/console behavior)
       (when (contains? (set (:triggers behavior)) trigger-name)
         ((:reaction behavior) object evt)))))
 
 (defn- ->botid [dom]
   (let [$dom (jayq/$ dom)
-        id   (or (jayq/attr $dom :botid)
-                 (-> $dom
-                     (jayq/parents-until "*[botid]")
-                     (.first)
-                     (jayq/attr :botid)))]
+        id   (loop [node $dom]
+               (if-let [botid (jayq/attr node :botid)]
+                 botid
+                 (recur (jayq/parent node))))]
     (int id)))
 
 (defn- event-handler [trigger-name type id]
   (fn [evt]
-    (when (or (empty? type)
-              (= (-> (->botid (.-target evt))
-                     (->object)
-                     (:type))
-                 (keyword type)))
+    (when (= (-> (.-target evt)
+                 (->botid)
+                 (->object)
+                 (:type))
+             (if (empty? type)
+               (type-of id)
+               (keyword type)))
       (trigger id trigger-name evt))))
 
 (defn- register-triggers [presenter id $view]

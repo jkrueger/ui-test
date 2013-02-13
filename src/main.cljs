@@ -3,20 +3,22 @@
             [jayq.core :as jayq]))
 
 (defn toggler [class]
-  (fn [item]
-    (-> (jayq/$ (:view item))
+  (fn [object]
+    (-> (jayq/$ (:view object))
         (jayq/toggle-class class))))
 
-(b/behavior :open-menu
+(defn caller [property]
+  (fn [object]
+    (let [f (get object property)]
+      (f))))
+
+(b/behavior :open-on-click
   :triggers [:menu-button.click]
   :reaction (toggler :open))
 
-(b/behavior :set-item-label
-  :triggers [:menu-button.click]
-  :reaction (fn [item]
-              (.log js/console "TEST")
-              (-> (jayq/$ (:view item))
-                  (jayq/text "Clicked"))))
+(b/behavior :action-on-click
+  :triggers [:.click]
+  :reaction (caller :action))
 
 (b/presenter :menu-button
   :triggers  []
@@ -29,7 +31,7 @@
 
 (b/presenter :submenu
   :triggers  [:menu-button.click]
-  :behaviors [:open-menu]
+  :behaviors [:open-on-click]
   :label     "none"
   :menu      nil
   :factory   (fn [this]
@@ -40,16 +42,13 @@
                   (b/view menu)])))
 
 (b/presenter :menu-item
-  :triggers  [:menu-item.click]
-  :behaviors []
+  :triggers  [:.click]
+  :behaviors [:action-on-click]
   :label     "none"
+  :action    (fn [])
   :factory   (fn [this]
                (let [label (:label this)]
                  [:li [:a {:href "#"} label]])))
-
-(defn menu-item [label behavior]
-  (-> (b/make :menu-item :label label)
-      (b/add-behavior behavior)))
 
 (b/presenter :menu
   :triggers  []
@@ -75,8 +74,12 @@
 (def file-menu
   (b/make :menu
           :submenu? true
-          :items    [(menu-item "Save" :set-item-label)
-                     (menu-item "Load" :set-item-label)]))
+          :items    [(b/make :menu-item
+                             :label "Save"
+                             :action #(.log js/console "Save"))
+                     (b/make :menu-item
+                             :label "Load"
+                             :action #(.log js/console "Load"))]))
 
 (def top-menu
   (b/make :menu
