@@ -31,17 +31,26 @@
   (map (partial fetch :behavior) (:behaviors presenter)))
 
 (defn trigger [id trigger-name evt]
+  (.log js/console "trigger")
   (let [object (->object id)]
     (doseq [behavior (->behaviors object)]
+      (.log js/console behavior)
       (when (contains? (set (:triggers behavior)) trigger-name)
         ((:reaction behavior) object evt)))))
+
+(defn- ->botid [dom]
+  (let [$dom (jayq/$ dom)
+        id   (or (jayq/attr $dom :botid)
+                 (-> $dom
+                     (jayq/parents-until "*[botid]")
+                     (.first)
+                     (jayq/attr :botid)))]
+    (int id)))
 
 (defn- event-handler [trigger-name type id]
   (fn [evt]
     (when (or (empty? type)
-              (= (-> (jayq/$ (.-target evt))
-                     (jayq/attr :botid)
-                     (int)
+              (= (-> (->botid (.-target evt))
                      (->object)
                      (:type))
                  (keyword type)))
@@ -66,3 +75,10 @@
           :id   id
           :view view))
       id)))
+
+(defn add-behavior [id behvior]
+  (swap! state
+         update-in
+         [:objects id :behaviors]
+         conj behavior)
+  id)
