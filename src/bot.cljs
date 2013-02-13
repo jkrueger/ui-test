@@ -30,29 +30,35 @@
 (defn- ->behaviors [presenter]
   (map (partial fetch :behavior) (:behaviors presenter)))
 
-(defn- event-handler [trigger type id]
+(defn trigger [id trigger-name evt]
+  (let [object (->object id)]
+    (doseq [behavior (->behaviors object)]
+      (when (contains? (set (:triggers behavior)) trigger-name)
+        ((:reaction behavior) object evt)))))
+
+(defn- event-handler [trigger-name type id]
   (fn [evt]
-    (let [object (->object id)
-          target (-> (jayq/$ (.-target evt))
+    (when (or (empty? type)
+              (= (-> (jayq/$ (.-target evt))
                      (jayq/attr :botid)
                      (int)
-                     (->object target-id))]
-      (when (= (:type target) type)
-        (doseq [behavior (->behaviors object)]
-          (when (contains? (:triggers behavior) trigger)
-            ((:reaction behavior) object evt)))))))
+                     (->object)
+                     (:type))
+                 (keyword type)))
+      (trigger id trigger-name evt))))
 
 (defn- register-triggers [presenter id $view]
   (doseq [trigger (:triggers presenter)]
     (let [[type event] (str/split (name trigger) #"\.")]
       (jayq/on $view event
-        (event-handler trigger (keyword type) id)))))
+        (event-handler trigger type id)))))
 
 (defn make [type & args]
   (when-let [presenter (fetch :presenter type)]
-    (let [id       (next-id)
-          view     (crate/html ((:factory presenter) presenter))
-          $view    (jayq/$ view)]
+    (let [id        (next-id)
+          presenter (merge presenter (apply hash-map args))
+          view      (crate/html ((:factory presenter) presenter))
+          $view     (jayq/$ view)]
       (jayq/attr $view :botid id)
       (register-triggers presenter id $view)
       (add-to-state :objects :id
