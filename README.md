@@ -1,4 +1,4 @@
 ui-test
 =======
 
-Some UI frame work testing
+To run examples simply checkout, run cljsbuild and open out/test.html.
