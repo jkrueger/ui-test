@@ -2,6 +2,8 @@
   (:require [bot       :as b]
             [jayq.core :as jayq]))
 
+(defn nothing [])
+
 (defn toggler [class]
   (fn [object]
     (-> (jayq/$ (:view object))
@@ -16,13 +18,25 @@
   :triggers [:menu-button.click]
   :reaction (toggler :open))
 
+(b/behavior :open-on-hover
+  :triggers [:menu-button.mouseover]
+  :reaction (toggler :open))
+
+(b/behavior :close-on-leave
+  :triggers [:menu-button.mouseout]
+  :reaction (toggler :open))
+
 (b/behavior :action-on-click
   :triggers [:.click]
   :reaction (caller :action))
 
+(b/behavior :prevent-default
+  :triggers [:.click]
+  :reaction #(.preventDefault %2))
+
 (b/presenter :menu-button
-  :triggers  []
-  :behaviors []
+  :triggers  [:.click]
+  :behaviors [:prevent-default]
   :label     "none"
   :factory   (fn [this]
                [:a.dropdown-toggle {:href "#"}
@@ -43,16 +57,14 @@
 
 (b/presenter :menu-item
   :triggers  [:.click]
-  :behaviors [:action-on-click]
+  :behaviors [:action-on-click :prevent-default]
   :label     "none"
-  :action    (fn [])
+  :action    nothing
   :factory   (fn [this]
                (let [label (:label this)]
                  [:li [:a {:href "#"} label]])))
 
 (b/presenter :menu
-  :triggers  []
-  :behaviors []
   :submenu?  false
   :items     []
   :factory   (fn [this]
@@ -63,36 +75,45 @@
                        (map b/view (:items this)))))
 
 (b/presenter :menu-bar
-  :triggers  []
-  :behaviors []
   :menu      nil
   :factory   (fn [this]
                [:div.navbar
                 [:div.navbar-inner
                  (b/view (:menu this))]]))
 
-(def file-menu
+(defn bar [menu]
+  (b/make :menu-bar :menu menu))
+
+(defn menu [& items]
+  (b/make :menu
+          :items (vec items)))
+
+(defn sub [& items]
   (b/make :menu
           :submenu? true
-          :items    [(b/make :menu-item
-                             :label "Save"
-                             :action #(.log js/console "Save"))
-                     (b/make :menu-item
-                             :label "Load"
-                             :action #(.log js/console "Load"))]))
+          :items    (vec items)))
+
+(def file-menu
+  (sub
+    (b/make :menu-item
+            :label "Save"
+            :action #(.log js/console "Save"))
+    (b/make :menu-item
+            :label "Load"
+            :action #(.log js/console "Load"))))
 
 (def top-menu
-  (b/make :menu
-          :items [(b/make :submenu
-                          :label "File"
-                          :menu  file-menu)
-                  (b/make :menu-item
-                          :label "Edit")]))
+  (menu
+    (b/make :submenu
+            :label "File"
+            :menu  file-menu)
+    (b/make :menu-item
+            :label "Edit")))
 
 (def menu-bar
-  (b/make :menu-bar
-          :menu top-menu))
+  (-> (bar top-menu)
+      (b/view)))
 
 (defn ^:export init []
   (-> (jayq/$ :#content)
-      (jayq/append (b/view menu-bar))))
+      (jayq/append menu-bar)))

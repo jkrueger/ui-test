@@ -16,11 +16,13 @@
 (defn fetch [type id]
   (get-in @state [type id]))
 
-(defn behavior [id & {:keys [triggers reation] :as m}]
-  (add-to-state :behavior :type (assoc m :type id)))
+(defn behavior [id & rest]
+  (add-to-state :behavior :type
+    (assoc (apply hash-map rest) :type id)))
 
-(defn presenter [id & {:keys [triggers behaviors view] :as m}]
-  (add-to-state :presenter :type (assoc m :type id)))
+(defn presenter [id & rest]
+  (add-to-state :presenter :type
+    (assoc (apply hash-map rest) :type id)))
 
 (defn ->object [id]
   (fetch :objects id))
@@ -47,15 +49,21 @@
                  (recur (jayq/parent node))))]
     (int id)))
 
+(defn- fill-in-type [trigger-type id]
+  (if (empty? trigger-type)
+    (type-of id)
+    (keyword trigger-type)))
+
+(defn- target-type [evt]
+  (-> (.-target evt)
+      (->botid)
+      (->object)
+      (:type)))
+
 (defn- event-handler [trigger-name type id]
   (fn [evt]
-    (when (= (-> (.-target evt)
-                 (->botid)
-                 (->object)
-                 (:type))
-             (if (empty? type)
-               (type-of id)
-               (keyword type)))
+    (when (= (target-type evt)
+             (fill-in-type type id))
       (trigger id trigger-name evt))))
 
 (defn- register-triggers [presenter id $view]
