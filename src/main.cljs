@@ -44,7 +44,9 @@
                 [:b.caret]]))
 
 (b/presenter :submenu
-  :triggers  [:menu-button.click]
+  :triggers  [:menu-button.click
+              :menu-button.mouseover
+              :menu-button.mouseout]
   :behaviors [:open-on-click]
   :label     "none"
   :menu      nil
@@ -94,25 +96,35 @@
           :items    (vec items)))
 
 (def file-menu
-  (sub
-    (b/make :menu-item
-            :label "Save"
-            :action #(.log js/console "Save"))
-    (b/make :menu-item
-            :label "Load"
-            :action #(.log js/console "Load"))))
+  (b/make :submenu
+          :label "File"
+          :menu  (sub
+                  (b/make :menu-item
+                          :label "Save"
+                          :action #(.log js/console "Save"))
+                  (b/make :menu-item
+                          :label "Load"
+                          :action #(.log js/console "Load")))))
 
 (def top-menu
   (menu
-    (b/make :submenu
-            :label "File"
-            :menu  file-menu)
+    file-menu
     (b/make :menu-item
             :label "Edit")))
 
 (def menu-bar
   (-> (bar top-menu)
       (b/view)))
+
+(defn ^:export open-on-hover []
+  (b/rem-behaviors file-menu :close-on-click)
+  (b/add-behaviors file-menu :open-on-hover :close-on-leave)
+  nil)
+
+(defn ^:export open-on-click []
+  (b/rem-behaviors file-menu :open-on-hover :close-on-leave)
+  (b/add-behaviors file-menu :close-on-click)
+  nil)
 
 (defn ^:export init []
   (-> (jayq/$ :#content)

@@ -86,9 +86,16 @@
           :view view))
       id)))
 
-(defn add-behavior [id behvior]
-  (swap! state
+(defn update-behaviors [id f & args]
+  (apply swap! state
          update-in
          [:objects id :behaviors]
-         conj behavior)
+         f
+         args)
   id)
+
+(defn add-behaviors [id & behaviors]
+  (apply update-behaviors id conj behaviors))
+
+(defn rem-behavior [id & behaviors]
+  (update-behaviors id (partial remove (set behaviors))))
